@@ -6,6 +6,7 @@ import lombok.*;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Set;
+import io.micronaut.serde.annotation.Serdeable;
 
 @Entity
 @Table(name = "expenses")
@@ -14,6 +15,8 @@ import java.util.Set;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Serdeable
+
 public class ExpenseEntity {
 
     @Id

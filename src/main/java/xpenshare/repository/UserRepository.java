@@ -7,4 +7,6 @@ import xpenshare.model.entity.UserEntity;
 @Repository
 public interface UserRepository extends CrudRepository<UserEntity, Long> {
     boolean existsByEmailIgnoreCase(String email);
+    boolean existsByMobileNumber(String mobileNumber);
+
 }

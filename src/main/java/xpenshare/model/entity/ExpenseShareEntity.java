@@ -2,6 +2,9 @@ package xpenshare.model.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import io.micronaut.serde.annotation.Serdeable;
+
+
 
 import java.math.BigDecimal;
 
@@ -16,6 +19,8 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Serdeable
+
 public class ExpenseShareEntity {
 
     @Id

@@ -1,10 +1,10 @@
 package xpenshare.model.dto.user;
 
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.*;
 import lombok.*;
+import io.micronaut.serde.annotation.Serdeable;
+
+@Serdeable
 
 @Data
 @NoArgsConstructor
@@ -12,16 +12,16 @@ import lombok.*;
 @Builder
 public class CreateUserRequest {
 
-    @NotBlank(message = "Name is required")
-    @Size(min =1, max = 100)
+    @NotBlank
     private String name;
 
-    @Email(message = "Invalid email")
-    @NotBlank
+    @Email(message = "Invalid email format")
+    @Pattern(regexp = "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.com$")
     private String email;
 
-    @Pattern(regexp = "^\\+?[1-9]\\d{1,14}$", message = "Invalid mobile number (must follow E.164)")
+    @Pattern(regexp = "^\\+?[0-9]{10,15}$")
     private String mobileNumber;
 
-    private AddressDto address;
+    @NotNull
+    private AddressDto address; // <-- use standalone AddressDto
 }

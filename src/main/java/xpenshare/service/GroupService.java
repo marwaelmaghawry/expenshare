@@ -1,16 +1,24 @@
 package xpenshare.service;
+import java.util.ArrayList;
 
 import io.micronaut.transaction.annotation.Transactional;
 import jakarta.inject.Singleton;
-import xpenshare.repository.facade.GroupRepositoryFacade;
-import xpenshare.repository.facade.UserRepositoryFacade;
+import xpenshare.event.KafkaProducer;
+import xpenshare.exception.NotFoundException;
 import xpenshare.model.dto.group.*;
 import xpenshare.model.entity.GroupEntity;
 import xpenshare.model.entity.GroupMemberEntity;
 import xpenshare.model.entity.UserEntity;
 import xpenshare.model.mapper.GroupMapper;
-import xpenshare.repository.GroupMemberRepository;
-import xpenshare.event.KafkaProducer;
+import xpenshare.repository.facade.GroupRepositoryFacade;
+import xpenshare.repository.facade.UserRepositoryFacade;
+
+import java.math.BigDecimal;
+import java.util.HashMap;
+import java.util.Map;
+
+import xpenshare.model.entity.ExpenseEntity;
+import xpenshare.model.entity.ExpenseShareEntity;
 
 import java.util.HashSet;
 import java.util.List;
@@ -22,22 +30,20 @@ public class GroupService {
 
     private final GroupRepositoryFacade groupRepositoryFacade;
     private final UserRepositoryFacade userRepositoryFacade;
-    private final GroupMemberRepository groupMemberRepository;
     private final GroupMapper groupMapper;
     private final KafkaProducer kafkaProducer;
 
     public GroupService(GroupRepositoryFacade groupRepositoryFacade,
                         UserRepositoryFacade userRepositoryFacade,
-                        GroupMemberRepository groupMemberRepository,
                         GroupMapper groupMapper,
                         KafkaProducer kafkaProducer) {
         this.groupRepositoryFacade = groupRepositoryFacade;
         this.userRepositoryFacade = userRepositoryFacade;
-        this.groupMemberRepository = groupMemberRepository;
         this.groupMapper = groupMapper;
         this.kafkaProducer = kafkaProducer;
     }
 
+    // ------------------ CREATE GROUP ------------------
     @Transactional
     public GroupDto createGroup(CreateGroupRequest request) {
         Set<UserEntity> users = request.getMembers().stream()
@@ -46,56 +52,136 @@ public class GroupService {
 
         GroupEntity group = GroupEntity.builder()
                 .name(request.getName())
-                .members(new HashSet<>())
                 .build();
+
+        Set<GroupMemberEntity> members = users.stream()
+                .map(user -> GroupMemberEntity.builder()
+                        .group(group)
+                        .user(user)
+                        .build())
+                .collect(Collectors.toSet());
+
+        group.setMembers(members);
 
         GroupEntity savedGroup = groupRepositoryFacade.save(group);
 
-        for (UserEntity user : users) {
-            GroupMemberEntity member = GroupMemberEntity.builder()
-                    .group(savedGroup)
-                    .user(user)
-                    .build();
-            groupMemberRepository.save(member);
-            savedGroup.getMembers().add(member);
-        }
+        // Kafka events
+        kafkaProducer.publishGroupCreated(
+                "{\"groupId\":" + savedGroup.getGroupId() + ",\"name\":\"" + savedGroup.getName() + "\"}"
+        );
 
-        // Publish events
-        kafkaProducer.publish("group.created", "{\"groupId\":" + savedGroup.getGroupId() + ",\"name\":\"" + savedGroup.getName() + "\"}");
-        kafkaProducer.publish("notification.welcome", "{\"targetType\":\"GROUP\",\"groupId\":" + savedGroup.getGroupId() + "}");
-
-        return groupMapper.toDto(savedGroup); // use instance method
+        return groupMapper.toDto(savedGroup);
     }
 
+    // ------------------ ADD MEMBERS ------------------
+    @Transactional
+    public Map<String, Object> addMembers(Long groupId, AddMembersRequest request) {
+        if (request.getMembers() == null || request.getMembers().isEmpty()) {
+            throw new IllegalArgumentException("Must provide at least one member to add");
+        }
+
+        GroupEntity group = groupRepositoryFacade.findByIdOrThrow(groupId);
+
+        List<Long> membersAdded = new ArrayList<>();
+
+        // Fetch users to add
+        List<UserEntity> usersToAdd = request.getMembers().stream()
+                .map(userRepositoryFacade::findByIdOrThrow)
+                .toList();
+
+        for (UserEntity user : usersToAdd) {
+            boolean alreadyInGroup = group.getMembers().stream()
+                    .anyMatch(m -> m.getUser().getUserId().equals(user.getUserId()));
+
+            if (!alreadyInGroup) {
+                GroupMemberEntity member = GroupMemberEntity.builder()
+                        .group(group)
+                        .user(user)
+                        .build();
+                group.getMembers().add(member);
+                membersAdded.add(user.getUserId());
+
+                kafkaProducer.publishNotificationWelcome(
+                        "{\"targetType\":\"GROUP_MEMBER\",\"groupId\":" + group.getGroupId() +
+                                ",\"userId\":" + user.getUserId() + "}"
+                );
+            }
+        }
+
+        // Save group and count total members
+        GroupEntity savedGroup = groupRepositoryFacade.save(group);
+        int totalMembers = savedGroup.getMembers().size();
+
+        // Custom response
+        Map<String, Object> response = new HashMap<>();
+        response.put("groupId", savedGroup.getGroupId());
+        response.put("membersAdded", membersAdded);
+        response.put("totalMembers", totalMembers);
+
+        return response;
+    }
+
+    // ------------------ GET GROUP ------------------
     @Transactional(readOnly = true)
     public GroupDto getGroup(Long groupId) {
         GroupEntity group = groupRepositoryFacade.findByIdOrThrow(groupId);
         return groupMapper.toDto(group);
     }
 
-    @Transactional
-    public GroupDto addMembers(Long groupId, AddMembersRequest request) {
+    // ------------------ GET ALL GROUPS ------------------
+    @Transactional(readOnly = true)
+    public List<GroupDto> getAllGroups() {
+        return groupRepositoryFacade.findAll().stream()
+                .map(groupMapper::toDto)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public GroupBalanceResponse getGroupBalances(Long groupId) {
         GroupEntity group = groupRepositoryFacade.findByIdOrThrow(groupId);
 
-        List<UserEntity> users = request.getMembers().stream()
-                .map(userRepositoryFacade::findByIdOrThrow)
+        Map<Long, BigDecimal> balances = new HashMap<>();
+        for (GroupMemberEntity member : group.getMembers()) {
+            balances.put(member.getUser().getUserId(), BigDecimal.ZERO);
+        }
+
+        for (ExpenseEntity expense : group.getExpenses()) {
+            Long payerId = expense.getPaidBy().getUserId();
+
+            // Add each user's share
+            for (ExpenseShareEntity share : expense.getShares()) {
+                Long userId = share.getUser().getUserId();
+                BigDecimal amount = share.getShareAmount();
+
+                if (userId.equals(payerId)) {
+                    // Skip payer's own share here
+                    continue;
+                }
+
+                // Other members owe this amount → positive
+                balances.put(userId, balances.get(userId).add(amount));
+
+                // Payer receives this amount → negative
+                balances.put(payerId, balances.get(payerId).subtract(amount));
+            }
+        }
+
+        List<GroupBalanceResponse.UserBalance> balanceList = balances.entrySet().stream()
+                .map(e -> GroupBalanceResponse.UserBalance.builder()
+                        .userId(e.getKey())
+                        .balance(e.getValue())
+                        .build())
                 .toList();
 
-        for (UserEntity user : users) {
-            GroupMemberEntity member = GroupMemberEntity.builder()
-                    .group(group)
-                    .user(user)
-                    .build();
-            groupMemberRepository.save(member);
-            group.getMembers().add(member);
-        }
-
-        // Publish member added events
-        for (UserEntity user : users) {
-            kafkaProducer.publish("notification.welcome",
-                    "{\"targetType\":\"GROUP_MEMBER\",\"groupId\":" + group.getGroupId() + ",\"userId\":" + user.getUserId() + "}");
-        }
-
-        return groupMapper.toDto(group);
+        return GroupBalanceResponse.builder()
+                .groupId(groupId)
+                .balances(balanceList)
+                .calculatedAt(java.time.Instant.now())
+                .build();
     }
+
+
+
+
+
 }

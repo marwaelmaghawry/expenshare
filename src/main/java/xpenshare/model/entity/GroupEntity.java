@@ -1,5 +1,7 @@
 package xpenshare.model.entity;
 
+import io.micronaut.serde.annotation.Serdeable;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.Instant;
@@ -12,6 +14,7 @@ import java.util.Set;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Serdeable
 public class GroupEntity {
 
     @Id
@@ -24,9 +27,13 @@ public class GroupEntity {
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 
+
     @OneToMany(mappedBy = "group", cascade = CascadeType.ALL, orphanRemoval = true)
-    @Builder.Default
     private Set<GroupMemberEntity> members = new HashSet<>();
+
+    @OneToMany(mappedBy = "group", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<ExpenseEntity> expenses = new HashSet<>();
+
 
     @PrePersist
     protected void onCreate() {

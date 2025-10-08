@@ -5,6 +5,8 @@ import io.micronaut.http.annotation.*;
 import jakarta.validation.Valid;
 import xpenshare.model.dto.user.*;
 import xpenshare.service.UserService;
+import java.util.List;
+import xpenshare.model.entity.UserEntity;
 
 import io.micronaut.security.annotation.Secured;
 import static io.micronaut.security.rules.SecurityRule.IS_ANONYMOUS;
@@ -13,6 +15,7 @@ import static io.micronaut.security.rules.SecurityRule.IS_ANONYMOUS;
 public class UserController {
 
     private final UserService userService;
+
     public UserController(UserService userService) {
         this.userService = userService;
     }
@@ -28,4 +31,17 @@ public class UserController {
     public HttpResponse<UserDto> getUser(Long userId) {
         return HttpResponse.ok(userService.getUser(userId));
     }
+
+    @Secured(IS_ANONYMOUS)
+    @Delete("/{userId}")
+    public HttpResponse<?> deleteUser(Long userId) {
+        userService.deleteUser(userId);
+        return HttpResponse.noContent(); // 204
+    }
+
+//    @Get
+//    public List<UserEntity> listUsers() {
+//        return userService.getAllUsers();
+//    }
+
 }

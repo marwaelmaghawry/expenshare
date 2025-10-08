@@ -76,8 +76,8 @@ public class ExpenseService {
             savedExpense.getShares().add(share);
         }
 
-        // Publish event
-        kafkaProducer.publish("expense.added",
+// New, works
+        kafkaProducer.publishExpenseAdded(
                 "{\"expenseId\":" + savedExpense.getId() +
                         ",\"groupId\":" + group.getGroupId() + "}");
 

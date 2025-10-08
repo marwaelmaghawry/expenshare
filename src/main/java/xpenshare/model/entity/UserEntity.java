@@ -1,15 +1,19 @@
 package xpenshare.model.entity;
 
+
+import io.micronaut.serde.annotation.Serdeable;
+
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.Instant;
-
 @Entity
 @Table(name = "users", uniqueConstraints = @UniqueConstraint(columnNames = "email"))
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Serdeable
+
 public class UserEntity {
 
     @Id

@@ -14,19 +14,9 @@ micronaut:
     csrf:
       enabled: false
     intercept-url-map:
-      - pattern: /h2-console/**
-        access:
-          - isAnonymous()
       - pattern: /**
         access:
-          - isAuthenticated()
-    token:
-      jwt:
-        signatures:
-          secret:
-            generator:
-              secret: ${JWT_GENERATOR_SIGNATURE_SECRET:pleaseChangeThisSecretForANewOne}
-    authentication: bearer
+          - isAnonymous()
   metrics:
     enabled: true
 
@@ -51,3 +41,17 @@ flyway:
   datasources:
     default:
       enabled: true
+
+
+kafka:
+  bootstrap:
+    servers: localhost:9092
+  producers:
+    default:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+  consumers:
+    default:
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      group-id: expen-share-group

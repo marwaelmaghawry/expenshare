@@ -1,8 +1,11 @@
 package xpenshare.model.dto.user;
+import io.micronaut.serde.annotation.Serdeable;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.*;
+
+@Serdeable
 
 @Data
 @NoArgsConstructor

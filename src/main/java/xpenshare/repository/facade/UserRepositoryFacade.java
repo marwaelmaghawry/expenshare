@@ -1,5 +1,8 @@
 package xpenshare.repository.facade;
 
+
+import java.util.List;
+
 import jakarta.inject.Singleton;
 import xpenshare.exception.NotFoundException;
 import xpenshare.model.entity.UserEntity;
@@ -29,7 +32,11 @@ public class UserRepositoryFacade {
                 .orElseThrow(() -> new NotFoundException("User not found"));
     }
 
-    public Optional<UserEntity> findById(Long id) {
-        return userRepository.findById(id);
-    }
+//    public Optional<UserEntity> findById(Long id) {
+//        return userRepository.findById(id);
+//    }
+//
+//    public List<UserEntity> findAll() {
+//        return (List<UserEntity>) userRepository.findAll();
+//    }
 }

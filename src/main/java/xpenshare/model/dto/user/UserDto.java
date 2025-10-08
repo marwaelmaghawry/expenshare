@@ -1,7 +1,10 @@
 package xpenshare.model.dto.user;
+import io.micronaut.serde.annotation.Serdeable;
 
 import lombok.*;
 import java.time.Instant;
+
+@Serdeable
 
 @Data
 @NoArgsConstructor

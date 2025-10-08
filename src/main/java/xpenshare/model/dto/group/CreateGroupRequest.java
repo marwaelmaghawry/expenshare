@@ -4,8 +4,11 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
+import io.micronaut.serde.annotation.Serdeable;
 
 import java.util.List;
+
+@Serdeable
 
 @Data
 public class CreateGroupRequest {

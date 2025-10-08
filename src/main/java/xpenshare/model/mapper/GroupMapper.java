@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+
 @Mapper(componentModel = "jsr330")
 public interface GroupMapper {
 
@@ -20,7 +21,7 @@ public interface GroupMapper {
 
     @Named("mapMembersSet")
     default List<Long> mapMembersSet(Set<GroupMemberEntity> members) {
-        if (members == null) return null;
+        if (members == null) return List.of();
         return members.stream()
                 .map(m -> m.getUser().getUserId())
                 .collect(Collectors.toList());

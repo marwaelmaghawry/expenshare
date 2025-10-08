@@ -5,6 +5,9 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import io.micronaut.serde.annotation.Serdeable;
+
+@Serdeable
 
 @Entity
 @Table(name = "settlements")
@@ -49,7 +52,7 @@ public class SettlementEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    private Status status = Status.CONFIRMED;
+    private Status status = Status.PENDING;
 
     public enum Status {
         PENDING, CONFIRMED, CANCELED

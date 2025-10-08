@@ -1,8 +1,10 @@
 package xpenshare.model.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.Instant;
+import io.micronaut.serde.annotation.Serdeable;
 
 @Entity
 @Table(
@@ -15,6 +17,7 @@ import java.time.Instant;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Serdeable
 public class GroupMemberEntity {
 
     @Id
@@ -24,6 +27,8 @@ public class GroupMemberEntity {
     @ManyToOne(optional = false)
     @JoinColumn(name = "group_id", nullable = false,
             foreignKey = @ForeignKey(name = "fk_group_member_group"))
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private GroupEntity group;
 
     @ManyToOne(optional = false)

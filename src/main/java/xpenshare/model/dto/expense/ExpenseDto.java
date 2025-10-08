@@ -2,10 +2,13 @@ package xpenshare.model.dto.expense;
 
 import lombok.Builder;
 import lombok.Data;
+import io.micronaut.serde.annotation.Serdeable;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+
+@Serdeable
 
 @Data
 @Builder

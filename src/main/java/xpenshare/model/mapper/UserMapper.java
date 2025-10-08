@@ -1,25 +1,21 @@
 package xpenshare.model.mapper;
 
-import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
-import org.mapstruct.factory.Mappers;
-import xpenshare.model.dto.user.*;
+import jakarta.inject.Singleton;
+import xpenshare.model.dto.user.AddressDto;
+import xpenshare.model.dto.user.CreateUserRequest;
+import xpenshare.model.dto.user.UserDto;
 import xpenshare.model.entity.UserEntity;
+import org.mapstruct.Mapper;
 
-@Mapper(componentModel = "jakarta")
+@Singleton
+@Mapper(componentModel = "jsr330")
 public interface UserMapper {
 
-    UserMapper INSTANCE = Mappers.getMapper(UserMapper.class);
-
-    // Request → Entity
-    @Mapping(target = "userId", ignore = true)
-    @Mapping(target = "createdAt", ignore = true)
     UserEntity toEntity(CreateUserRequest dto);
 
-    // Entity → DTO
     UserDto toDto(UserEntity entity);
 
-    // Nested mapping: AddressDto ↔ Address
     UserEntity.Address toEntity(AddressDto dto);
+
     AddressDto toDto(UserEntity.Address entity);
 }

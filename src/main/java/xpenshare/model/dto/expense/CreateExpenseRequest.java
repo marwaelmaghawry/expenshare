@@ -2,10 +2,12 @@ package xpenshare.model.dto.expense;
 
 import jakarta.validation.constraints.*;
 import lombok.Data;
+import io.micronaut.serde.annotation.Serdeable;
 
 import java.math.BigDecimal;
 import java.util.List;
 
+@Serdeable
 @Data
 public class CreateExpenseRequest {
 
@@ -29,6 +31,7 @@ public class CreateExpenseRequest {
     private List<Long> participants;
     private List<ShareRequest> shares;
 
+    @Serdeable
     @Data
     public static class ShareRequest {
         private Long userId;

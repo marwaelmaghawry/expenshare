@@ -4,6 +4,9 @@ import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import java.math.BigDecimal;
 import jakarta.validation.constraints.PositiveOrZero;
+import io.micronaut.serde.annotation.Serdeable;
+
+@Serdeable
 
 @Data
 @NoArgsConstructor

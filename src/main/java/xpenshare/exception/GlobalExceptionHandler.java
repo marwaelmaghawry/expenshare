@@ -32,12 +32,12 @@ public class GlobalExceptionHandler implements ExceptionHandler<RuntimeException
             return HttpResponse.status(HttpStatus.CONFLICT).body(body);
         }
 
-        if (exception instanceof ValidationException ve) {
-            body.put("error", ve.getMessage());
+        if (exception instanceof ValidationException) {
+            body.put("error", exception.getMessage()); // use the actual message
             body.put("code", "VALIDATION_ERROR");
-            body.put("details", ve.getDetails());
             return HttpResponse.badRequest(body);
         }
+
 
         // fallback for other exceptions
         body.put("error", "Internal server error");
