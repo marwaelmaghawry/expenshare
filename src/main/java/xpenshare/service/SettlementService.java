@@ -18,7 +18,12 @@ import xpenshare.repository.facade.UserRepositoryFacade;
 import xpenshare.model.dto.settlement.SuggestSettlementsResponse;
 import xpenshare.model.dto.settlement.SuggestSettlementsRequest;
 
+import xpenshare.model.entity.GroupMemberEntity;
+import xpenshare.model.entity.ExpenseEntity;
+import xpenshare.model.entity.ExpenseShareEntity;
+
 import java.math.BigDecimal;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.time.Instant;
@@ -203,23 +208,102 @@ public class SettlementService {
         return response;
     }
 
-    public SuggestSettlementsResponse suggestMinimalSettlements(
-            Long groupId, SuggestSettlementsRequest request) {
+    @Transactional(readOnly = true)
+    public SuggestSettlementsResponse suggestMinimalSettlements(Long groupId, SuggestSettlementsRequest request) {
+        GroupEntity group = groupRepositoryFacade.findByIdOrThrow(groupId);
 
-        // For simplicity, we will return dummy data for now
+        // ✅ Step 1: Build initial balances
+        Map<Long, BigDecimal> balances = new HashMap<>();
+        for (GroupMemberEntity member : group.getMembers()) {
+            balances.put(member.getUser().getUserId(), BigDecimal.ZERO);
+        }
+
+        // --- EXPENSES ---
+        for (ExpenseEntity expense : group.getExpenses()) {
+            Long payerId = expense.getPaidBy().getUserId();
+            for (ExpenseShareEntity share : expense.getShares()) {
+                Long userId = share.getUser().getUserId();
+                BigDecimal amount = share.getShareAmount();
+
+                if (!userId.equals(payerId)) {
+                    balances.put(userId, balances.get(userId).add(amount));     // owes
+                    balances.put(payerId, balances.get(payerId).subtract(amount)); // is owed
+                }
+            }
+        }
+
+        // --- EXISTING SETTLEMENTS (CONFIRMED) ---
+        List<SettlementEntity> settlements = settlementRepositoryFacade.findByGroupId(groupId);
+        for (SettlementEntity s : settlements) {
+            if (s.getStatus() == SettlementEntity.Status.CONFIRMED) {
+                Long fromUserId = s.getFromUser().getUserId();
+                Long toUserId = s.getToUser().getUserId();
+                BigDecimal amount = s.getAmount();
+                balances.put(fromUserId, balances.get(fromUserId).subtract(amount));
+                balances.put(toUserId, balances.get(toUserId).add(amount));
+            }
+        }
+
+        // ✅ Step 2: Separate debtors (negative) and creditors (positive)
+        List<Map.Entry<Long, BigDecimal>> debtors = balances.entrySet().stream()
+                .filter(e -> e.getValue().compareTo(BigDecimal.ZERO) > 0) // owes
+                .collect(Collectors.toList());
+        List<Map.Entry<Long, BigDecimal>> creditors = balances.entrySet().stream()
+                .filter(e -> e.getValue().compareTo(BigDecimal.ZERO) < 0) // should receive
+                .collect(Collectors.toList());
+
+        // ✅ Step 3: Sort if needed based on strategy
+        String strategy = (request != null && request.getStrategy() != null)
+                ? request.getStrategy()
+                : "GREEDY_MIN_TRANSFERS";
+
+        // Optional: sort to make it stable
+        debtors.sort(Map.Entry.comparingByValue());
+        creditors.sort(Map.Entry.comparingByValue());
+
         List<SuggestSettlementsResponse.Suggestion> suggestions = new ArrayList<>();
 
-        // Example: suggest a single transfer from user 2 -> user 1
-        suggestions.add(new SuggestSettlementsResponse.Suggestion(2L, 1L, new BigDecimal("100.00")));
+        // ✅ Step 4: Match payers to receivers
+        int i = 0, j = 0;
+        while (i < debtors.size() && j < creditors.size()) {
+            Long debtorId = debtors.get(i).getKey();
+            Long creditorId = creditors.get(j).getKey();
 
+            BigDecimal debtorAmount = debtors.get(i).getValue();
+            BigDecimal creditorAmount = creditors.get(j).getValue().abs();
+
+            BigDecimal amount = debtorAmount.min(creditorAmount);
+
+            // Add suggestion
+            suggestions.add(new SuggestSettlementsResponse.Suggestion(
+                    debtorId,
+                    creditorId,
+                    request != null && request.getRoundTo() != null
+                            ? amount.setScale(2, BigDecimal.ROUND_HALF_UP)
+                            : amount
+            ));
+
+            // Adjust balances
+            debtorAmount = debtorAmount.subtract(amount);
+            creditorAmount = creditorAmount.subtract(amount);
+
+            debtors.get(i).setValue(debtorAmount);
+            creditors.get(j).setValue(creditorAmount.negate());
+
+            if (debtorAmount.compareTo(BigDecimal.ZERO) == 0) i++;
+            if (creditorAmount.compareTo(BigDecimal.ZERO) == 0) j++;
+        }
+
+        // ✅ Step 5: Build response
         SuggestSettlementsResponse response = new SuggestSettlementsResponse();
         response.setGroupId(groupId);
         response.setSuggestions(suggestions);
         response.setTotalTransfers(suggestions.size());
-        response.setStrategy(request.getStrategy());
+        response.setStrategy(strategy);
 
         return response;
     }
+
 
 
 }
