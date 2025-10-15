@@ -45,7 +45,13 @@ public class KafkaConsumers {
         sendSettlementConfirmation(message);
     }
 
-    // ===== Placeholder methods =====
+    @Topic("balance.reminder")
+    public void handleBalanceReminder(String message) {
+        System.out.println("Balance reminder event received: " + message);
+        System.out.println("Sending reminder emails/SMS to users...");
+    }
+
+
     private void sendEmail(String msg) {
         System.out.println("Sending email: " + msg);
     }

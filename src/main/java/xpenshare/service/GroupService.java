@@ -163,6 +163,7 @@ public class GroupService {
             }
         }
 
+        // --- Convert to response format ---
         var balanceList = balances.entrySet().stream()
                 .map(e -> GroupBalanceResponse.UserBalance.builder()
                         .userId(e.getKey())
@@ -170,10 +171,38 @@ public class GroupService {
                         .build())
                 .toList();
 
-        return GroupBalanceResponse.builder()
+        var response = GroupBalanceResponse.builder()
                 .groupId(groupId)
                 .balances(balanceList)
                 .calculatedAt(java.time.Instant.now())
                 .build();
+
+        // ✅ Automatically trigger a balance reminder if anyone owes money
+        List<GroupBalanceResponse.UserBalance> owingMembers = balanceList.stream()
+                .filter(b -> b.getBalance().compareTo(BigDecimal.ZERO) > 0)
+                .toList();
+
+        if (!owingMembers.isEmpty()) {
+            StringBuilder message = new StringBuilder();
+            message.append("{\"groupId\":").append(groupId).append(",\"owingMembers\":[");
+
+            for (int i = 0; i < owingMembers.size(); i++) {
+                var member = owingMembers.get(i);
+                message.append("{\"userId\":").append(member.getUserId())
+                        .append(",\"balance\":").append(member.getBalance()).append("}");
+                if (i < owingMembers.size() - 1) message.append(",");
+            }
+
+            message.append("]}");
+
+            kafkaProducer.publishBalanceReminder(message.toString());
+            System.out.println("📢 Balance reminder event sent for group " + groupId + ": " + message);
+        } else {
+            System.out.println("✅ No balances pending for group " + groupId);
+        }
+
+        return response;
     }
+
+
 }

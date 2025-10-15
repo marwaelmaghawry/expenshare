@@ -40,6 +40,19 @@ public class KafkaProducer {
         }
     }
 
+    public void publishSettlementConfirmed(String message) {
+        if (eventClient != null) {
+            eventClient.sendSettlementConfirmed(message);
+        }
+    }
+
+    public void publishBalanceReminder(String message) {
+        if (eventClient != null) {
+            eventClient.sendBalanceReminder(message);
+        }
+    }
+
+
     @KafkaClient
     interface EventClient {
         @Topic("expense.added")
@@ -53,5 +66,14 @@ public class KafkaProducer {
 
         @Topic("notification.welcome")
         void sendNotification(String message);
+
+        @Topic("settlement.confirmed")
+        void sendSettlementConfirmed(String message);
+
+        @Topic("balance.reminder")
+        void sendBalanceReminder(String message);
+
     }
+
+
 }

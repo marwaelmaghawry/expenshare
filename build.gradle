@@ -33,7 +33,7 @@ dependencies {
     compileOnly("io.micronaut:micronaut-http-client")
     compileOnly("io.micronaut.openapi:micronaut-openapi-annotations")
     runtimeOnly("ch.qos.logback:logback-classic")
-    runtimeOnly("com.h2database:h2")
+    implementation("com.h2database:h2")
     testImplementation("io.micronaut:micronaut-http-client")
     testImplementation("org.apache.commons:commons-compress:1.27.1")
     testImplementation("org.testcontainers:junit-jupiter")

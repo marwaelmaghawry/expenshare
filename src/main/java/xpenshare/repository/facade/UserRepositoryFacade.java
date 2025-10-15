@@ -32,11 +32,4 @@ public class UserRepositoryFacade {
                 .orElseThrow(() -> new NotFoundException("User not found"));
     }
 
-//    public Optional<UserEntity> findById(Long id) {
-//        return userRepository.findById(id);
-//    }
-//
-//    public List<UserEntity> findAll() {
-//        return (List<UserEntity>) userRepository.findAll();
-//    }
 }

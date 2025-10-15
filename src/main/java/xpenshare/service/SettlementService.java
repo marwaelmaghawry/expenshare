@@ -22,6 +22,8 @@ import xpenshare.model.entity.GroupMemberEntity;
 import xpenshare.model.entity.ExpenseEntity;
 import xpenshare.model.entity.ExpenseShareEntity;
 
+import xpenshare.event.KafkaProducer;
+
 import java.math.BigDecimal;
 
 import java.util.ArrayList;
@@ -39,16 +41,20 @@ public class SettlementService {
     private final SettlementMapper settlementMapper;
     private final SettlementRepository settlementRepository;
 
+    private final KafkaProducer kafkaProducer;
+
+
     public SettlementService(SettlementRepositoryFacade settlementRepositoryFacade,
                              GroupRepositoryFacade groupRepositoryFacade,
                              UserRepositoryFacade userRepositoryFacade,
                              SettlementMapper settlementMapper,
-                             SettlementRepository settlementRepository) {
+                             SettlementRepository settlementRepository, KafkaProducer kafkaProducer ) {
         this.settlementRepositoryFacade = settlementRepositoryFacade;
         this.groupRepositoryFacade = groupRepositoryFacade;
         this.userRepositoryFacade = userRepositoryFacade;
         this.settlementMapper = settlementMapper;
         this.settlementRepository = settlementRepository;
+        this.kafkaProducer = kafkaProducer;
     }
 
     // ✅ Create new settlement (default PENDING)
@@ -123,6 +129,14 @@ public class SettlementService {
         settlement.setConfirmedAt(Instant.now());
 
         SettlementEntity saved = settlementRepository.save(settlement);
+
+
+        kafkaProducer.publishSettlementConfirmed(
+                "{\"groupId\":" + saved.getGroup().getGroupId() +
+                        ",\"fromUserId\":" + saved.getFromUser().getUserId() +
+                        ",\"toUserId\":" + saved.getToUser().getUserId() +
+                        ",\"amount\":" + saved.getAmount() + "}"
+        );
 
         return SettlementDto.builder()
                 .settlementId(saved.getId())
